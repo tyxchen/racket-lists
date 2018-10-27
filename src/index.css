@@ -1,0 +1,150 @@
+body {
+    display: flex;
+    flex-direction: column;
+    font-family: sans-serif;
+    height: 100vh;
+    margin: 0;
+}
+
+.app-main {
+    flex: 1;
+    padding: 2em;
+    padding-bottom: 1em;
+}
+
+.app-output {
+    height: 300px;
+    padding: 2em;
+    padding-top: 1em;
+    border-top: 1px solid;
+}
+
+.boxy {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+}
+
+.boxy-car, .boxy-cdr {
+    position: relative;
+    min-width: 20px;
+    height: 20px;
+    background-color: white;
+    border: 1px solid;
+}
+
+.boxy-car:hover, .boxy-cdr:hover {
+    background-color: rgb(255, 255, 100);
+}
+
+.boxy + .boxy-wrapper {
+    margin-top: 10px;
+}
+
+.boxy-wrapper + .boxy-wrapper {
+    margin-top: 20px;
+}
+
+.boxy-car {
+    font-family: monospace;
+    line-height: 20px;
+    text-align: center;
+    padding: 0 4px;
+}
+
+.boxy-cdr:not(:last-child) {
+    margin-right: 20px;
+}
+
+.dragging {
+    position: fixed;
+    opacity: .7;
+    box-shadow: 0 0 15px gold;
+    z-index: 100;
+}
+
+.drag-active {
+    background-color: lightgreen !important;
+    box-shadow: 0 0 15px skyblue;
+}
+
+line {
+    stroke: black;
+}
+
+.downwards-arrow {
+    position: absolute;
+    top: 10px;
+    height: 100%;
+    width: 30px;
+    pointer-events: none;
+}
+
+.rightwards-arrow {
+    position: absolute;
+    left: 50%;
+    width: 31px;
+    height: 100%;
+    pointer-events: none;
+}
+
+.downwards-arrow svg {
+    position: absolute;
+    bottom: 0;
+}
+
+.rightwards-arrow svg {
+    position: absolute;
+    right: 0;
+}
+
+.downwards-arrow::before {
+    position: absolute;
+    left: calc(50% - 1px);
+    content: "";
+    width: 2px;
+    height: 100%;
+    background: black;
+}
+
+.rightwards-arrow::before {
+    position: absolute;
+    top: calc(50% - 1px);
+    content: "";
+    height: 2px;
+    width: 100%;
+    background: black;
+}
+
+.changeable-text {
+    width: 100%;
+    height: 100%;
+}
+
+.changeable-text span {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.output-highlighted, .view-highlighted {
+    background-color: rgb(255, 255, 100);
+}
+
+.output-outlined, .view-outlined {
+    outline: 2px solid gold;
+}
+
+.add-to-nodes {
+    display: inline-block;
+    margin-top: 20px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.add-to-nodes:hover {
+    background: lightgreen;
+}
