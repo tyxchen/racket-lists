@@ -34,18 +34,49 @@ const renderTextAsList = (node, depth, builder, first = false) => {
 
     builder.push((
         (node.car instanceof Node) ?
-        `${
-            first ? '' : '\n' + ' '.repeat(6*depth)
-        }<span data-car-id="${node.id}">(list ${
-            renderTextAsList(node.car, depth+1, [], true).join(' ').replace(/\s+<\//g, '</')
-        })</span>
+            `${
+                first ? '' : '\n' + ' '.repeat(6*depth)
+            }<span data-car-id="${node.id}">(list ${
+                renderTextAsList(node.car, depth+1, [], true).join(' ').replace(/\s+<\//g, '</')
+            })</span>
 ${' '.repeat(6*depth-1)}` :
-        `<span data-car-id="${node.id}">${
-            (node.car == null ? '""' : (/^\d+$|^'[\S]+$/.test(node.car) ? node.car : `"${node.car}"`))
-        }</span>`
+            `<span data-car-id="${node.id}">${
+                (node.car == null ? '""' : (/^\d+$|^'[\S]+$/.test(node.car) ? node.car : `"${node.car}"`))
+            }</span>`
     ) + `<span data-cdr-id="${(node.cdr != null) ? node.cdr.id : (node.id + '-empty')}">`);
 
     renderTextAsList(node.cdr, depth, builder);
+
+    builder.push('</span>');
+
+    return builder;
+}
+
+const renderTextAsQuot = (node, depth, builder, first = false) => {
+    if (node == null) {
+        return '';
+    }
+
+    builder.push((
+        (node.car instanceof Node) ?
+            `${
+                first ? '' : '\n' + ' '.repeat(2*depth)
+            }<span data-car-id="${node.id}">(${
+                renderTextAsQuot(node.car, depth+1, [], true).join(' ').replace(/\s+<\//g, '</')
+            })</span>
+${' '.repeat(2*depth-1)}` :
+            `<span data-car-id="${node.id}">${
+                (node.car == null ? 
+                    '""' : 
+                    (/^\d+$/.test(node.car) ? 
+                        node.car : 
+                        (/^'[\S]+$/.test(node.car) ?
+                            node.car.slice(1) :
+                            `"${node.car}"`)))
+            }</span>`
+    ) + `<span data-cdr-id="${(node.cdr != null) ? node.cdr.id : (node.id + '-empty')}">`);
+
+    renderTextAsQuot(node.cdr, depth, builder);
 
     builder.push('</span>');
 
@@ -324,6 +355,11 @@ class App extends Component {
                 renderTextAsList(this.state.allNodes[node], 1, [], true).join(' ').replace(/\s+<\//g, '</')
             }</span>)`
         ).join('\n\n');
+        case 'quot': return this.state.nodes.map((node) =>
+            `'(<span data-car-id="${this.state.allNodes[node].id}">${
+                renderTextAsQuot(this.state.allNodes[node], 1, [], true).join(' ').replace(/\s+<\//g, '</')
+            }</span>)`
+        ).join('\n\n');
         }
     }
 
@@ -552,7 +588,7 @@ class App extends Component {
             </div>
             <div className="app-output">
                 <select onChange={this.changeTextRenderMode}>
-                    {[ 'cons', 'list' ].map((option) => 
+                    {[ 'cons', 'list', 'quot' ].map((option) => 
                         <option value={option} checked={this.state.renderMode === option}>({option} ...)</option>
                     )}
                 </select>
