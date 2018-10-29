@@ -657,8 +657,8 @@ class App extends Component {
                 <div className="app-output">
                     <div className="view-controls">
                         <em class="add-to-nodes">Make separate list</em><br/>
-                        <em class="dup-node">Duplicate node</em><br />
-                        <em class="delete-node">Delete node</em>
+                        <em class="dup-node">Duplicate list</em><br />
+                        <em class="delete-node">Delete list</em>
                     </div>
                     <select onChange={this.changeTextRenderMode}>
                         {[ 'cons', 'list', 'quot' ].map((option) => 
