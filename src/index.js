@@ -233,19 +233,21 @@ class Boxy extends Component {
     }
 
     mouseOver(isCar, e) {
-        if (isCar) {
-            Array.from(document.querySelectorAll(`[data-car-id="${this.props.node.id}"]`))
-                .map(a => { a.classList.add('output-highlighted') });
-        } else {
-            const next = this.props.node.cdr;
-            if (next != null) {
-                Array.from(document.querySelectorAll(`[data-node-id="${next.id}"]`))
-                    .map(a => { a.classList.add('view-outlined') });
-                Array.from(document.querySelectorAll(`[data-cdr-id="${next.id}"]`))
-                    .map(a => { a.classList.add('output-outlined') });
-            } else {
-                Array.from(document.querySelectorAll(`[data-cdr-id="${this.props.node.id}-empty"]`))
+        if (!document.querySelector('app-wrapper').classList.contains('dragging-app')) {
+            if (isCar) {
+                Array.from(document.querySelectorAll(`[data-car-id="${this.props.node.id}"]`))
                     .map(a => { a.classList.add('output-highlighted') });
+            } else {
+                const next = this.props.node.cdr;
+                if (next != null) {
+                    Array.from(document.querySelectorAll(`[data-node-id="${next.id}"]`))
+                        .map(a => { a.classList.add('view-outlined') });
+                    Array.from(document.querySelectorAll(`[data-cdr-id="${next.id}"]`))
+                        .map(a => { a.classList.add('output-outlined') });
+                } else {
+                    Array.from(document.querySelectorAll(`[data-cdr-id="${this.props.node.id}-empty"]`))
+                        .map(a => { a.classList.add('output-highlighted') });
+                }
             }
         }
     }
@@ -298,7 +300,9 @@ class App extends Component {
             draggingEl: null,
             draggingNode: null,
             dragging: false,
-            renderMode: 'cons'
+            renderMode: 'cons',
+            resizing: false,
+            outputHeight: 300
         };
 
         this.addNewNode = this.addNewNode.bind(this);
@@ -313,6 +317,25 @@ class App extends Component {
         this.stopDragging = this.stopDragging.bind(this);
         this.mouseMove = this.mouseMove.bind(this);
         this.mouseOut = this.mouseOut.bind(this);
+    }
+
+    componentDidMount() {
+        window.addEventListener('mousedown', (e) => {
+            if (e.target && e.target.classList.contains('app-resize-handle') && e.buttons === 1) {
+                this.setState({ resizing: true });
+            }
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (this.state.resizing) {
+                this.setState({
+                    outputHeight: Math.max(120, 
+                        Math.min(window.innerHeight - e.clientY - 16, window.innerHeight - 100))
+                });
+            }
+        });
+        window.addEventListener('mouseup', (e) => {
+            this.setState({ resizing: false });
+        });
     }
 
     addNewNode(prevId = undefined) {
@@ -411,20 +434,14 @@ class App extends Component {
 
     isDragging(e) {
         if (this.state.dragging && this.state.draggingEl && e.buttons === 1) {
-            const mouseOverElList = this.state.draggingBoundingBoxes.filter((el) => 
-                (el[2] <= e.clientX && e.clientX <= el[4]) &&
-                (el[1] <= e.clientY && e.clientY <= el[3]) &&
-                !el[0].closest('.dragging')
-            ),
-                  mouseOverEl = (mouseOverElList.length) ? mouseOverElList[0][0] : null;
-
             this.state.draggingEl.style.left = `${e.clientX - this.state.offsetX}px`;
             this.state.draggingEl.style.top = `${e.clientY - this.state.offsetY}px`;
 
-            (document.querySelector(".drag-active") || document.body).classList.remove('drag-active');
+            Array.from(document.querySelectorAll('.drag-active'))
+                .map(a => { a.classList.remove('drag-active') });
 
-            if (mouseOverEl) {
-                mouseOverEl.classList.add('drag-active');
+            if (document.elementFromPoint(e.clientX, e.clientY).closest('.view-controls')) {
+                document.elementFromPoint(e.clientX, e.clientY).classList.add('drag-active');
             }
         } else if (this.state.draggingId && e.buttons === 1) {
             if (Math.abs(this.state.mouseX - e.clientX) > 5 ||
@@ -444,18 +461,6 @@ class App extends Component {
                     offsetY,
                     draggingEl,
                     draggingNode: this.getNodeFromId(prevState.draggingId),
-                    draggingBoundingBoxes: Array.from(
-                        document.querySelectorAll('.boxy-car, .boxy-cdr')
-                    ).map((el) => {
-                        const rect = el.getBoundingClientRect();
-                        return [
-                            el,
-                            rect.top,
-                            rect.left,
-                            rect.top + rect.height,
-                            rect.left + rect.width
-                        ];
-                    }),
                     dragging: true
                 }));
             }
@@ -466,29 +471,13 @@ class App extends Component {
         const { draggingEl } = this.state;
 
         if (draggingEl) {
-            const auxElements = [ '.add-to-nodes', '.dup-node', '.delete-node' ],
-                  auxBB = auxElements.map((el) => {
-                      const rect = document.querySelector(el).getBoundingClientRect();
-                      return [
-                          rect.top,
-                          rect.left,
-                          rect.top + rect.height,
-                          rect.left + rect.width,
-                          el
-                      ];
-                  });
+            const auxElements = [ 'add-to-nodes', 'dup-node', 'delete-node' ],
+                  mouseOverEl = document.elementFromPoint(e.clientX, e.clientY); 
 
-            const mouseOverElList = this.state.draggingBoundingBoxes
-            .filter((el) => 
-                (el[2] <= e.clientX && e.clientX <= el[4]) &&
-                (el[1] <= e.clientY && e.clientY <= el[3]) &&
-                !el[0].closest('.dragging')
-            ),
-                  mouseOverEl = (mouseOverElList.length) ? mouseOverElList[0][0] : null;
-
-            if (mouseOverEl) {
-                const isCdr = mouseOverEl.classList.contains('boxy-cdr'),
-                      nodeDropId = mouseOverEl.closest('.boxy-wrapper').dataset.nodeId,
+            if (mouseOverEl.closest('.boxy-car, .boxy-cdr')) {
+                const mouseOverBoxy = mouseOverEl.closest('.boxy-car, .boxy-cdr'),
+                      isCdr = mouseOverBoxy.classList.contains('boxy-cdr'),
+                      nodeDropId = mouseOverBoxy.closest('.boxy-wrapper').dataset.nodeId,
                       prevNode = this.state.allNodes.filter((node) =>
                           node.cdr && node.cdr.id === this.state.draggingId
                       ),
@@ -538,59 +527,55 @@ class App extends Component {
                     allNodes
                 });
             } else {
-                for (const rect of auxBB) {
-                    if ((rect[1] <= e.clientX && e.clientX <= rect[3]) &&
-                            (rect[0] <= e.clientY && e.clientY <= rect[2])) {
-                        switch (rect[4]) {
-                        case '.add-to-nodes': {
-                            if (!this.state.nodes.includes(this.getNodeIndex(this.state.draggingNode))) {
-                                const prevNode = this.state.allNodes.filter((node) =>
-                                          node.cdr && node.cdr.id === this.state.draggingId
-                                      ),
-                                      parentNode = this.state.allNodes.filter((node) =>
-                                          node.car instanceof Node && node.car.id === this.state.draggingId
-                                      );
+                const targets = auxElements.filter((sel) => mouseOverEl.className.includes(sel));
+                if (targets.length) {
+                    switch (targets[0]) {
+                    case 'add-to-nodes': {
+                        if (!this.state.nodes.includes(this.getNodeIndex(this.state.draggingNode))) {
+                            const prevNode = this.state.allNodes.filter((node) =>
+                                      node.cdr && node.cdr.id === this.state.draggingId
+                                  ),
+                                  parentNode = this.state.allNodes.filter((node) =>
+                                      node.car instanceof Node && node.car.id === this.state.draggingId
+                                  );
 
-                                let { nodes } = this.state;
+                            let { nodes } = this.state;
 
-                                if (prevNode.length) {
-                                    prevNode[0].cdr = null;
-                                }
-
-                                if (parentNode.length) {
-                                    parentNode[0].car = null;
-                                }
-
-                                nodes.push(this.getNodeIndex(this.state.draggingNode));
-
-                                this.setState({ nodes });
-
-                                break;
+                            if (prevNode.length) {
+                                prevNode[0].cdr = null;
                             }
-                        }
-                        case '.dup-node': {
-                            let { nodes, allNodes } = this.state;
 
-                            cloneNode(this.state.draggingNode, allNodes);
+                            if (parentNode.length) {
+                                parentNode[0].car = null;
+                            }
 
-                            nodes.push(allNodes.length - 1);
+                            nodes.push(this.getNodeIndex(this.state.draggingNode));
 
-                            this.setState({ nodes, allNodes });
-
-                            break;
-                        }
-                        case '.delete-node': {
-                            this.deleteNode(this.state.draggingNode);
+                            this.setState({ nodes });
 
                             break;
                         }
-                        }
+                    }
+                    case 'dup-node': {
+                        let { nodes, allNodes } = this.state;
+
+                        cloneNode(this.state.draggingNode, allNodes);
+
+                        nodes.push(allNodes.length - 1);
+
+                        this.setState({ nodes, allNodes });
+
                         break;
+                    }
+                    case 'delete-node': {
+                        this.deleteNode(this.state.draggingNode);
+
+                        break;
+                    }
                     }
                 }
             }
 
-            (document.querySelector(".drag-active") || document.body).classList.remove('drag-active');
             draggingEl.classList.remove('dragging');
             draggingEl.style.top = null;
             draggingEl.style.left = null;
@@ -653,31 +638,38 @@ class App extends Component {
     }
 
     render() {
-        return (<>
-            <div className="app-main" onDblClick={((e) => { this.addNewNode() })}
-                    onMouseDown={this.startDragging} onMouseMove={this.isDragging} onMouseUp={this.stopDragging}>
+        return (<div className={[
+            'app-wrapper',
+            this.state.dragging ? 'dragging-app' : '',
+            this.state.resizing ? 'resizing-app' : ''
+        ].join(' ')}
+            onMouseDown={this.startDragging} onMouseMove={this.isDragging} onMouseUp={this.stopDragging}>
+            <div className="app-view" onDblClick={((e) => { this.addNewNode() })}>
                 {this.state.nodes.map(node => 
                     <Boxy node={this.state.allNodes[node]}
                         updateNode={this.updateNode} 
                         addNewNode={this.addNewNode} />
                 )}
-                {this.state.dragging && <>
-                    <em class="add-to-nodes">Make separate list</em><br/>
-                    <em class="dup-node">Duplicate node</em><br />
-                    <em class="delete-node">Delete node</em>
-                </>}
             </div>
-            <div className="app-output">
-                <select onChange={this.changeTextRenderMode}>
-                    {[ 'cons', 'list', 'quot' ].map((option) => 
-                        <option value={option} checked={this.state.renderMode === option}>({option} ...)</option>
-                    )}
-                </select>
-                <pre onMouseMove={this.mouseMove}
-                    onMouseOut={this.mouseOut}
-                    dangerouslySetInnerHTML={{ __html: this.renderText() }}></pre>
+            <div className="app-output-window" style={{ height: `${this.state.outputHeight}px` }}>
+                <div className="app-resize-handle"></div>
+                <div className="app-output">
+                    {this.state.dragging && <div className="view-controls">
+                        <em class="add-to-nodes">Make separate list</em><br/>
+                        <em class="dup-node">Duplicate node</em><br />
+                        <em class="delete-node">Delete node</em>
+                    </div>}
+                    <select onChange={this.changeTextRenderMode}>
+                        {[ 'cons', 'list', 'quot' ].map((option) => 
+                            <option value={option} checked={this.state.renderMode === option}>({option} ...)</option>
+                        )}
+                    </select>
+                    <pre onMouseMove={this.mouseMove}
+                        onMouseOut={this.mouseOut}
+                        dangerouslySetInnerHTML={{ __html: this.renderText() }}></pre>
+                </div>
             </div>
-        </>);
+        </div>);
     }
 }
 
@@ -694,4 +686,4 @@ const node1 = new Node("A", null),
       allNodes = [node1, node2, node3, node4, node5, node6, node7, node8, node9];
 
 
-render(<App nodes={nodes} allNodes={allNodes} />, document.querySelector('body'));
+render(<App nodes={nodes} allNodes={allNodes} />, document.querySelector('main'));
