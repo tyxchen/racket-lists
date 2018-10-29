@@ -233,7 +233,7 @@ class Boxy extends Component {
     }
 
     mouseOver(isCar, e) {
-        if (!document.querySelector('app-wrapper').classList.contains('dragging-app')) {
+        if (!document.querySelector('.app-wrapper').classList.contains('dragging-app')) {
             if (isCar) {
                 Array.from(document.querySelectorAll(`[data-car-id="${this.props.node.id}"]`))
                     .map(a => { a.classList.add('output-highlighted') });
@@ -329,7 +329,7 @@ class App extends Component {
             if (this.state.resizing) {
                 this.setState({
                     outputHeight: Math.max(120, 
-                        Math.min(window.innerHeight - e.clientY - 16, window.innerHeight - 100))
+                        Math.min(window.innerHeight - e.clientY - 15, window.innerHeight - 100))
                 });
             }
         });
@@ -644,7 +644,8 @@ class App extends Component {
             this.state.resizing ? 'resizing-app' : ''
         ].join(' ')}
             onMouseDown={this.startDragging} onMouseMove={this.isDragging} onMouseUp={this.stopDragging}>
-            <div className="app-view" onDblClick={((e) => { this.addNewNode() })}>
+            <div className="app-view" onDblClick={((e) => { this.addNewNode() })}
+                style={{ height: `${window.innerHeight - this.state.outputHeight - 20}px` }}>
                 {this.state.nodes.map(node => 
                     <Boxy node={this.state.allNodes[node]}
                         updateNode={this.updateNode} 
@@ -654,11 +655,11 @@ class App extends Component {
             <div className="app-output-window" style={{ height: `${this.state.outputHeight}px` }}>
                 <div className="app-resize-handle"></div>
                 <div className="app-output">
-                    {this.state.dragging && <div className="view-controls">
+                    <div className="view-controls">
                         <em class="add-to-nodes">Make separate list</em><br/>
                         <em class="dup-node">Duplicate node</em><br />
                         <em class="delete-node">Delete node</em>
-                    </div>}
+                    </div>
                     <select onChange={this.changeTextRenderMode}>
                         {[ 'cons', 'list', 'quot' ].map((option) => 
                             <option value={option} checked={this.state.renderMode === option}>({option} ...)</option>
