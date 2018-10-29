@@ -136,7 +136,9 @@ line {
     outline: 2px solid gold;
 }
 
-.add-to-nodes {
+.add-to-nodes,
+.dup-node,
+.delete-node {
     display: inline-block;
     margin-top: 20px;
     -webkit-user-select: none;
@@ -145,6 +147,11 @@ line {
     user-select: none;
 }
 
-.add-to-nodes:hover {
+.add-to-nodes:hover,
+.dup-node:hover {
     background: lightgreen;
+}
+
+.delete-node:hover {
+    background: salmon;
 }

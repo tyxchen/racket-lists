@@ -11,6 +11,30 @@ class Node {
     }
 }
 
+const cloneNode = (node, allNodes) => {
+    if (node == null) {
+        return null;
+    } else if (!(node instanceof Node)) {
+        return node;
+    }
+
+    const newNode = new Node(cloneNode(node.car, allNodes), cloneNode(node.cdr, allNodes));
+    allNodes.push(newNode);
+    return newNode;
+};
+
+const deleteNode = (node, allNodes) => {
+    if (!(node instanceof Node)) {
+        return;
+    }
+
+    const ind = allNodes.findIndex((anode) => anode.id === node.id);
+    allNodes.splice(ind, 1);
+
+    deleteNode(node.car, allNodes);
+    deleteNode(node.cdr, allNodes);
+}
+                
 const renderTextAsCons = (node, depth) => {
     if (node == null) {
         return 'empty';
@@ -170,7 +194,7 @@ class Boxy extends Component {
         super(props);
 
         this.changeCar = this.changeCar.bind(this);
-        this.deleteNode = this.deleteNode.bind(this);
+        this.addNewNode = this.addNewNode.bind(this);
         this.condRenderCar = this.condRenderCar.bind(this);
         this.condRenderCdr = this.condRenderCdr.bind(this);
         this.mouseOverCar = this.mouseOver.bind(this, true);
@@ -184,9 +208,11 @@ class Boxy extends Component {
         this.props.updateNode(node);
     }
 
-    deleteNode() {
+    addNewNode(e) {
+        e.stopPropagation();
+
         if (this.props.node.cdr == null) {
-            this.props.deleteNode(this.props.node);
+            this.props.addNewNode(this.props.node.id);
         }
     }
 
@@ -208,25 +234,29 @@ class Boxy extends Component {
 
     mouseOver(isCar, e) {
         if (isCar) {
-            document.querySelector(`[data-car-id="${this.props.node.id}"]`)
-                .classList.add('output-highlighted');
+            Array.from(document.querySelectorAll(`[data-car-id="${this.props.node.id}"]`))
+                .map(a => { a.classList.add('output-highlighted') });
         } else {
             const next = this.props.node.cdr;
-            let selector;
-
             if (next != null) {
-                selector = next.id;
+                Array.from(document.querySelectorAll(`[data-node-id="${next.id}"]`))
+                    .map(a => { a.classList.add('view-outlined') });
+                Array.from(document.querySelectorAll(`[data-cdr-id="${next.id}"]`))
+                    .map(a => { a.classList.add('output-outlined') });
             } else {
-                selector = this.props.node.id + '-empty';
+                Array.from(document.querySelectorAll(`[data-cdr-id="${this.props.node.id}-empty"]`))
+                    .map(a => { a.classList.add('output-highlighted') });
             }
-
-            document.querySelector(`[data-cdr-id="${selector}"]`)
-                .classList.add('output-highlighted');
         }
     }
 
     mouseOut(e) {
-        (document.querySelector('.output-highlighted') || document.body).classList.remove('output-highlighted');
+        Array.from(document.querySelectorAll('.output-highlighted'))
+            .map(a => { a.classList.remove('output-highlighted') });
+        Array.from(document.querySelectorAll('.output-outlined'))
+            .map(a => { a.classList.remove('output-outlined') });
+        Array.from(document.querySelectorAll('.view-outlined'))
+            .map(a => { a.classList.remove('view-outlined') });
     }
 
     render() {
@@ -241,17 +271,17 @@ class Boxy extends Component {
                     <div className="boxy-cdr"
                         onMouseOver={this.mouseOverCdr} 
                         onMouseOut={this.mouseOut}
-                        onClick={this.deleteNode}>{this.condRenderCdr(node.cdr)}</div>
+                        onDblClick={this.addNewNode}>{this.condRenderCdr(node.cdr)}</div>
                     {(node.car instanceof Node) && <DownwardsArrow />}
                     {(node.cdr instanceof Node) && <Boxy 
                         node={node.cdr} 
                         updateNode={this.props.updateNode}
-                        deleteNode={this.props.deleteNode} />}
+                        addNewNode={this.props.addNewNode} />}
                 </div>
                 {(node.car instanceof Node) && <Boxy 
                     node={node.car} 
                     updateNode={this.props.updateNode}
-                    deleteNode={this.props.deleteNode} />}
+                    addNewNode={this.props.addNewNode} />}
             </div>
         );
     }
@@ -285,18 +315,25 @@ class App extends Component {
         this.mouseOut = this.mouseOut.bind(this);
     }
 
-    addNewNode() {
+    addNewNode(prevId = undefined) {
         const { nodes, allNodes } = this.state,
               newNode = new Node(null, null);
 
         allNodes.push(newNode);
-        nodes.push(allNodes.length - 1);
+        
+        if (prevId === undefined) {
+            nodes.push(allNodes.length - 1);
+        } else {
+            let node = this.getNodeFromId(prevId);
+            node.cdr = newNode;
+            this.updateNode(node);
+        }
 
         this.setState({ nodes, allNodes });
     }
 
     getNodeFromId(id) {
-        return this.state.allNodes.filter((node) => node.id === id)[0];
+        return this.state.allNodes.find((node) => node.id === id);
     }
 
     getNodeIndex(node) {
@@ -314,18 +351,14 @@ class App extends Component {
     deleteNode(node) {
         let { nodes, allNodes } = this.state,
             prevNode = this.state.allNodes
-                .filter((anode) => anode.cdr != null && anode.cdr.id === node.id);
-
-        if (node.car instanceof Node) {
-            alert("Can't delete; first is a list");
-            return;
-        }
+                .filter((anode) => anode.cdr != null && anode.cdr.id === node.id),
+            parentNode = this.state.allNodes
+                .filter((anode) => anode.car instanceof Node && anode.car.id === node.id);
 
         if (confirm("Are you sure you want to delete this node?")) {
-            const ind = this.getNodeIndex(node),
-                  oldNodes = nodes.map((node) => allNodes[node]);
+            const oldNodes = nodes.map((node) => allNodes[node]);
 
-            allNodes.splice(ind, 1);
+            deleteNode(node, allNodes);
             
             nodes = oldNodes.filter((anode) => anode.id !== node.id)
                 .map((node) => this.getNodeIndex(node));
@@ -334,6 +367,9 @@ class App extends Component {
                 prevNode[0].cdr = null;
             }
 
+            if (parentNode.length) {
+                parentNode[0].car = null;
+            }
 
             this.setState({ nodes, allNodes });
         }
@@ -430,14 +466,17 @@ class App extends Component {
         const { draggingEl } = this.state;
 
         if (draggingEl) {
-            const addToNodes = document.querySelector('.add-to-nodes'),
-                  addToNodesRect = addToNodes.getBoundingClientRect(),
-                  addToNodesBB = [
-                      addToNodesRect.top,
-                      addToNodesRect.left,
-                      addToNodesRect.top + addToNodesRect.height,
-                      addToNodesRect.left + addToNodesRect.width,
-                  ];
+            const auxElements = [ '.add-to-nodes', '.dup-node', '.delete-node' ],
+                  auxBB = auxElements.map((el) => {
+                      const rect = document.querySelector(el).getBoundingClientRect();
+                      return [
+                          rect.top,
+                          rect.left,
+                          rect.top + rect.height,
+                          rect.left + rect.width,
+                          el
+                      ];
+                  });
 
             const mouseOverElList = this.state.draggingBoundingBoxes
             .filter((el) => 
@@ -498,29 +537,57 @@ class App extends Component {
                     nodes,
                     allNodes
                 });
-            } else if (!this.state.nodes.includes(this.getNodeIndex(this.state.draggingNode)) &&
-                    (addToNodesBB[1] <= e.clientX && e.clientX <= addToNodesBB[3]) &&
-                    (addToNodesBB[0] <= e.clientY && e.clientY <= addToNodesBB[2])) {
-                const prevNode = this.state.allNodes.filter((node) =>
-                          node.cdr && node.cdr.id === this.state.draggingId
-                      ),
-                      parentNode = this.state.allNodes.filter((node) =>
-                          node.car instanceof Node && node.car.id === this.state.draggingId
-                      );
+            } else {
+                for (const rect of auxBB) {
+                    if ((rect[1] <= e.clientX && e.clientX <= rect[3]) &&
+                            (rect[0] <= e.clientY && e.clientY <= rect[2])) {
+                        switch (rect[4]) {
+                        case '.add-to-nodes': {
+                            if (!this.state.nodes.includes(this.getNodeIndex(this.state.draggingNode))) {
+                                const prevNode = this.state.allNodes.filter((node) =>
+                                          node.cdr && node.cdr.id === this.state.draggingId
+                                      ),
+                                      parentNode = this.state.allNodes.filter((node) =>
+                                          node.car instanceof Node && node.car.id === this.state.draggingId
+                                      );
 
-                let { nodes } = this.state;
+                                let { nodes } = this.state;
 
-                if (prevNode.length) {
-                    prevNode[0].cdr = null;
+                                if (prevNode.length) {
+                                    prevNode[0].cdr = null;
+                                }
+
+                                if (parentNode.length) {
+                                    parentNode[0].car = null;
+                                }
+
+                                nodes.push(this.getNodeIndex(this.state.draggingNode));
+
+                                this.setState({ nodes });
+
+                                break;
+                            }
+                        }
+                        case '.dup-node': {
+                            let { nodes, allNodes } = this.state;
+
+                            cloneNode(this.state.draggingNode, allNodes);
+
+                            nodes.push(allNodes.length - 1);
+
+                            this.setState({ nodes, allNodes });
+
+                            break;
+                        }
+                        case '.delete-node': {
+                            this.deleteNode(this.state.draggingNode);
+
+                            break;
+                        }
+                        }
+                        break;
+                    }
                 }
-
-                if (parentNode.length) {
-                    parentNode[0].car = null;
-                }
-
-                nodes.push(this.getNodeIndex(this.state.draggingNode));
-
-                this.setState({ nodes });
             }
 
             (document.querySelector(".drag-active") || document.body).classList.remove('drag-active');
@@ -542,26 +609,32 @@ class App extends Component {
     mouseMove(e) {
         e.stopPropagation();
 
-        (document.querySelector('.view-highlighted') || document.body).classList.remove('view-highlighted');
-        (document.querySelector('.view-outlined') || document.body).classList.remove('view-outlined');
-        (document.querySelector('.output-highlighted') || document.body).classList.remove('output-highlighted');
-        (document.querySelector('.output-outlined') || document.body).classList.remove('output-outlined');
+        Array.from(document.querySelectorAll('.view-highlighted'))
+            .map(a => { a.classList.remove('view-highlighted') });
+        Array.from(document.querySelectorAll('.view-outlined'))
+            .map(a => { a.classList.remove('view-outlined') });
+        Array.from(document.querySelectorAll('.output-highlighted'))
+            .map(a => { a.classList.remove('output-highlighted') });
+        Array.from(document.querySelectorAll('.output-outlined'))
+            .map(a => { a.classList.remove('output-outlined') });
 
         if (e.target.tagName === "SPAN") {
             const target = e.target;
             if (target.dataset.carId) {
-                document.querySelector(`[data-node-id="${target.dataset.carId}"] .boxy-car`)
-                    .classList.add('view-highlighted');
+                Array.from(document.querySelectorAll(`[data-node-id="${target.dataset.carId}"] > .boxy > .boxy-car`))
+                    .map(a => { a.classList.add('view-highlighted') });
                 target.classList.add('output-highlighted');
             } else if (target.dataset.cdrId) {
                 let selector = `[data-node-id="${target.dataset.cdrId}"]`;
 
                 if (/-empty/.test(target.dataset.cdrId)) {
-                    selector = selector.replace('-empty', '') + ' .boxy-cdr';
-                    document.querySelector(selector).classList.add('view-highlighted');
+                    selector = selector.replace('-empty', '') + ' > .boxy > .boxy-cdr';
+                    Array.from(document.querySelectorAll(selector))
+                        .map(a => { a.classList.add('view-highlighted') });
                     target.classList.add('output-highlighted');
                 } else {
-                    document.querySelector(selector).classList.add('view-outlined');
+                    Array.from(document.querySelectorAll(selector))
+                        .map(a => { a.classList.add('view-outlined') });
                     target.classList.add('output-outlined');
                 }
             }
@@ -569,22 +642,30 @@ class App extends Component {
     }
 
     mouseOut() {
-        (document.querySelector('.view-highlighted') || document.body).classList.remove('view-highlighted');
-        (document.querySelector('.view-outlined') || document.body).classList.remove('view-outlined');
-        (document.querySelector('.output-highlighted') || document.body).classList.remove('output-highlighted');
-        (document.querySelector('.output-outlined') || document.body).classList.remove('output-outlined');
+        Array.from(document.querySelectorAll('.view-highlighted'))
+            .map(a => { a.classList.remove('view-highlighted') });
+        Array.from(document.querySelectorAll('.view-outlined'))
+            .map(a => { a.classList.remove('view-outlined') });
+        Array.from(document.querySelectorAll('.output-highlighted'))
+            .map(a => { a.classList.remove('output-highlighted') });
+        Array.from(document.querySelectorAll('.output-outlined'))
+            .map(a => { a.classList.remove('output-outlined') });
     }
 
     render() {
         return (<>
-            <div className="app-main" onDblClick={this.addNewNode}
+            <div className="app-main" onDblClick={((e) => { this.addNewNode() })}
                     onMouseDown={this.startDragging} onMouseMove={this.isDragging} onMouseUp={this.stopDragging}>
                 {this.state.nodes.map(node => 
                     <Boxy node={this.state.allNodes[node]}
                         updateNode={this.updateNode} 
-                        deleteNode={this.deleteNode} />
+                        addNewNode={this.addNewNode} />
                 )}
-                {this.state.dragging && <em class="add-to-nodes">make separate list</em>}
+                {this.state.dragging && <>
+                    <em class="add-to-nodes">Make separate list</em><br/>
+                    <em class="dup-node">Duplicate node</em><br />
+                    <em class="delete-node">Delete node</em>
+                </>}
             </div>
             <div className="app-output">
                 <select onChange={this.changeTextRenderMode}>
